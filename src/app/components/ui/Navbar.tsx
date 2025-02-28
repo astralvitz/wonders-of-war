@@ -2,7 +2,6 @@
 
 import { signIn, signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
-import Image from 'next/image';
 
 export default function Navbar() {
   const { data: session } = useSession();
@@ -30,7 +29,7 @@ export default function Navbar() {
                   Leaderboard
                 </Link>
                 <Link
-                  href={`/profile/${session.user?.id}`}
+                  href={`/profile/${session.user.id}`}
                   className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Profile
@@ -41,15 +40,14 @@ export default function Navbar() {
           <div className="flex items-center">
             {session ? (
               <div className="flex items-center space-x-4">
-                {session.user?.image && (
-                  <Image
-                    src={session.user.image}
-                    alt={session.user.name || 'User'}
-                    width={32}
-                    height={32}
-                    className="rounded-full"
-                  />
-                )}
+                <div className="text-gray-300">
+                  {session.user.twitterHandle && (
+                    <span>@{session.user.twitterHandle}</span>
+                  )}
+                  {session.user.eloRating && (
+                    <span className="ml-2">({session.user.eloRating} ELO)</span>
+                  )}
+                </div>
                 <button
                   onClick={() => signOut()}
                   className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"

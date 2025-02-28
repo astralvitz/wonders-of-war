@@ -7,52 +7,87 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// NextAuth models
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  image         String?
+  id            String    @id @default(uuid())
+  twitterHandle String?   @unique
+  eloRating     Int       @default(1500)
+  totalWins     Int       @default(0)
+  totalLosses   Int       @default(0)
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  games         Game[]    @relation("PlayerGames")
-  elo           Int       @default(1500)
-  wins          Int       @default(0)
-  losses        Int       @default(0)
-  wonderStats   WonderStats[]
+  accounts      Account[]
+  sessions      Session[]
+  wonderStats   PlayerWonderStats[]
+  gamesAsPlayer1 Game[]   @relation("Player1Games")
+  gamesAsPlayer2 Game[]   @relation("Player2Games")
+  @@index([eloRating, totalWins, totalLosses])
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  username          String? // Twitter handle
+  user              User    @relation(fields: [userId], references: [id])
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+// Game models
+model Wonder {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  stats       PlayerWonderStats[]
+  gamesAsWonder1 Game[] @relation("Wonder1Games")
+  gamesAsWonder2 Game[] @relation("Wonder2Games")
+}
+
+model PlayerWonderStats {
+  userId    String
+  wonderId  Int
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  user      User     @relation(fields: [userId], references: [id])
+  wonder    Wonder   @relation(fields: [wonderId], references: [id])
+  @@id([userId, wonderId])
+  @@index([wonderId, wins, losses])
 }
 
 model Game {
-  id            String    @id @default(cuid())
+  id            String    @id @default(uuid())
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  players       User[]    @relation("PlayerGames")
+  player1Id     String
+  player2Id     String
   status        GameStatus @default(WAITING)
-  winner        String?
-  wonderChoices Json      // Stores which player chose which wonder
-  gameState     Json      // Stores the current state of the game
+  winner        String?    // ID of the winning User
+  player1WonderId Int
+  player2WonderId Int
+  player1Progress Int     @default(0) // Progress toward Wonder (0-21)
+  player2Progress Int     @default(0)
+  currentTurn   String    // ID of user whose turn it is
+  actionsInProgress Json  // Store ongoing actions (Attack, Defend, etc.)
   turns         Int       @default(0)
-}
-
-model WonderStats {
-  id            String    @id @default(cuid())
-  userId        String
-  wonderType    WonderType
-  wins          Int       @default(0)
-  losses        Int       @default(0)
-  user          User      @relation(fields: [userId], references: [id])
-  @@unique([userId, wonderType])
+  player1       User      @relation("Player1Games", fields: [player1Id], references: [id])
+  player2       User      @relation("Player2Games", fields: [player2Id], references: [id])
+  player1Wonder Wonder    @relation("Wonder1Games", fields: [player1WonderId], references: [id])
+  player2Wonder Wonder    @relation("Wonder2Games", fields: [player2WonderId], references: [id])
+  @@index([createdAt, status])
 }
 
 enum GameStatus {
   WAITING
+  CHOOSING
   IN_PROGRESS
   COMPLETED
-}
-
-enum WonderType {
-  GREAT_PYRAMID
-  COLOSSUS_OF_RHODES
-  GREAT_LIBRARY
-  STATUE_OF_LIBERTY
-  COLISEUM
+  ABANDONED
 } 
