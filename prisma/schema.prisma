@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  games         Game[]    @relation("PlayerGames")
+  elo           Int       @default(1500)
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  wonderStats   WonderStats[]
+}
+
+model Game {
+  id            String    @id @default(cuid())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  players       User[]    @relation("PlayerGames")
+  status        GameStatus @default(WAITING)
+  winner        String?
+  wonderChoices Json      // Stores which player chose which wonder
+  gameState     Json      // Stores the current state of the game
+  turns         Int       @default(0)
+}
+
+model WonderStats {
+  id            String    @id @default(cuid())
+  userId        String
+  wonderType    WonderType
+  wins          Int       @default(0)
+  losses        Int       @default(0)
+  user          User      @relation(fields: [userId], references: [id])
+  @@unique([userId, wonderType])
+}
+
+enum GameStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum WonderType {
+  GREAT_PYRAMID
+  COLOSSUS_OF_RHODES
+  GREAT_LIBRARY
+  STATUE_OF_LIBERTY
+  COLISEUM
+} 

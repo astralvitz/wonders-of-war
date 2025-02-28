@@ -1,0 +1,73 @@
+'use client';
+
+import { signIn, signOut, useSession } from 'next-auth/react';
+import Link from 'next/link';
+import Image from 'next/image';
+
+export default function Navbar() {
+  const { data: session } = useSession();
+
+  return (
+    <nav className="bg-gray-800 border-b border-gray-700">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-16">
+          <div className="flex items-center">
+            <Link href="/" className="text-xl font-bold text-white">
+              Wonders of War
+            </Link>
+            {session && (
+              <div className="ml-10 flex items-baseline space-x-4">
+                <Link
+                  href="/game"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Play
+                </Link>
+                <Link
+                  href="/leaderboard"
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Leaderboard
+                </Link>
+                <Link
+                  href={`/profile/${session.user?.id}`}
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Profile
+                </Link>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center">
+            {session ? (
+              <div className="flex items-center space-x-4">
+                {session.user?.image && (
+                  <Image
+                    src={session.user.image}
+                    alt={session.user.name || 'User'}
+                    width={32}
+                    height={32}
+                    className="rounded-full"
+                  />
+                )}
+                <button
+                  onClick={() => signOut()}
+                  className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => signIn('twitter')}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Sign In with Twitter
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+} 
