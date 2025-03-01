@@ -2,7 +2,7 @@ import { Server as NetServer } from 'http';
 import { NextRequest } from 'next/server';
 import { Server as SocketIOServer } from 'socket.io';
 import { prisma } from '../../../lib/prisma';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '../auth/[...nextauth]/auth';
 
 // Game types
 type GameChoice = 'rock' | 'paper' | 'scissors' | null;
