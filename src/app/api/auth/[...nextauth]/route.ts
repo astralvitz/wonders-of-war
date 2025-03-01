@@ -22,6 +22,11 @@ const handler = NextAuth({
       },
     }),
   ],
+  secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: "database",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   debug: true, // Enable debug mode to see detailed errors
   callbacks: {
     async session({ session, user }) {
