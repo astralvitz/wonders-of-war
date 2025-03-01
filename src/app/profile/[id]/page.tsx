@@ -27,24 +27,24 @@ export default function ProfilePage() {
   useEffect(() => {
     async function fetchProfile() {
       try {
-        // For now, we'll just use the session data for the current user
-        // In a real app, you would fetch this from an API
-        if (session?.user && isOwnProfile) {
-          setProfile({
-            id: session.user.id,
-            name: session.user.name || undefined,
-            twitterHandle: session.user.twitterHandle || undefined,
-            eloRating: session.user.eloRating || 1500,
-            totalWins: 0, // Placeholder
-            totalLosses: 0, // Placeholder
-            createdAt: new Date().toISOString(), // Placeholder
-          });
-          setLoading(false);
-        } else {
-          // In the future, fetch from API
-          setError("Profile data not available");
-          setLoading(false);
+        // Always fetch profile data from the API
+        const response = await fetch(`/api/user/${id}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
         }
+        
+        const userData = await response.json();
+        setProfile({
+          id: userData.id,
+          name: userData.name,
+          twitterHandle: userData.twitterHandle,
+          eloRating: userData.eloRating,
+          totalWins: userData.totalWins,
+          totalLosses: userData.totalLosses,
+          createdAt: userData.createdAt,
+        });
+        setLoading(false);
       } catch (err) {
         setError("Failed to load profile");
         setLoading(false);
@@ -52,7 +52,7 @@ export default function ProfilePage() {
     }
 
     fetchProfile();
-  }, [id, session, isOwnProfile]);
+  }, [id]);
 
   if (loading) {
     return (
