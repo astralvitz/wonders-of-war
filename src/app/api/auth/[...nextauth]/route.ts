@@ -16,9 +16,8 @@ const handler = NextAuth({
         return {
           id: profile.data.id,
           name: profile.data.name,
-          email: null, // Twitter OAuth 2.0 doesn't provide email by default
+          email: null,
           image: profile.data.profile_image_url,
-          username: profile.data.username,
         };
       },
     }),
@@ -47,11 +46,22 @@ const handler = NextAuth({
       if (account?.provider === 'twitter') {
         try {
           const twitterHandle = account.username || (profile as any)?.data?.username;
-          if (user.id && twitterHandle) {
+          
+          // First check if user exists
+          const existingUser = await prisma.user.findUnique({
+            where: { id: user.id },
+          });
+          
+          if (existingUser && twitterHandle) {
+            // Update existing user
             await prisma.user.update({
               where: { id: user.id },
               data: { twitterHandle }
             });
+          } else if (twitterHandle) {
+            // If user doesn't exist yet, the adapter will create it
+            // We don't need to do anything here
+            console.log("New user will be created by adapter");
           }
         } catch (error) {
           console.error('Error updating user:', error);
