@@ -12,9 +12,18 @@ const handler = NextAuth({
       clientId: process.env.TWITTER_CLIENT_ID!,
       clientSecret: process.env.TWITTER_CLIENT_SECRET!,
       version: "2.0",
+      profile(profile) {
+        return {
+          id: profile.data.id,
+          name: profile.data.name,
+          email: null, // Twitter OAuth 2.0 doesn't provide email by default
+          image: profile.data.profile_image_url,
+          username: profile.data.username,
+        };
+      },
     }),
   ],
-  debug: process.env.NODE_ENV === 'development',
+  debug: true, // Enable debug mode to see detailed errors
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
@@ -28,13 +37,22 @@ const handler = NextAuth({
       }
       return session;
     },
-    async signIn({ user, account }) {
-      if (account?.provider === 'twitter' && typeof account.username === 'string') {
+    async signIn({ user, account, profile }) {
+      console.log("Sign in attempt:", { 
+        userId: user?.id,
+        provider: account?.provider,
+        username: account?.username || (profile as any)?.data?.username
+      });
+      
+      if (account?.provider === 'twitter') {
         try {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { twitterHandle: account.username }
-          });
+          const twitterHandle = account.username || (profile as any)?.data?.username;
+          if (user.id && twitterHandle) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { twitterHandle }
+            });
+          }
         } catch (error) {
           console.error('Error updating user:', error);
           // Continue even if update fails
