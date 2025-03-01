@@ -20,7 +20,7 @@ interface TwitterProfileData {
 const prisma = new PrismaClient();
 
 // Use a consistent secret
-const authOptions: NextAuthOptions = {
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     TwitterProvider({

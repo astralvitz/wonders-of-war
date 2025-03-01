@@ -9,12 +9,12 @@ datasource db {
 
 // NextAuth models
 model User {
-  id            String    @id @default(uuid())
+  id            String    @id @default(cuid())
   name          String?   // Added for NextAuth
   email         String?   @unique // Added for NextAuth
   emailVerified DateTime? // Added for NextAuth
   image         String?   // Added for NextAuth
-  twitterHandle String?   @unique
+  twitterHandle String?
   eloRating     Int       @default(1500)
   totalWins     Int       @default(0)
   totalLosses   Int       @default(0)
