@@ -9,11 +9,12 @@ const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
     TwitterProvider({
-      clientId: process.env.TWITTER_CLIENT_ID || '',
-      clientSecret: process.env.TWITTER_CLIENT_SECRET || '',
+      clientId: process.env.TWITTER_CLIENT_ID!,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET!,
       version: "2.0",
     }),
   ],
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
@@ -28,11 +29,16 @@ const handler = NextAuth({
       return session;
     },
     async signIn({ user, account }) {
-      if (account?.provider === 'twitter') {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { twitterHandle: account.username }
-        });
+      if (account?.provider === 'twitter' && typeof account.username === 'string') {
+        try {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { twitterHandle: account.username }
+          });
+        } catch (error) {
+          console.error('Error updating user:', error);
+          // Continue even if update fails
+        }
       }
       return true;
     }
@@ -40,7 +46,7 @@ const handler = NextAuth({
   pages: {
     signIn: '/',
     signOut: '/',
-    error: '/',
+    error: '/auth/error',
   },
 });
 

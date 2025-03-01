@@ -2,9 +2,18 @@
 
 import { signIn, signOut, useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useCallback } from 'react';
 
 export default function Navbar() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+
+  const handleSignIn = useCallback(() => {
+    signIn('twitter');
+  }, []);
+
+  const handleSignOut = useCallback(() => {
+    signOut();
+  }, []);
 
   return (
     <nav className="bg-gray-800 border-b border-gray-700">
@@ -14,7 +23,7 @@ export default function Navbar() {
             <Link href="/" className="text-xl font-bold text-white">
               Wonders of War
             </Link>
-            {session && (
+            {status === 'authenticated' && session && (
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link
                   href="/game"
@@ -38,7 +47,7 @@ export default function Navbar() {
             )}
           </div>
           <div className="flex items-center">
-            {session ? (
+            {status === 'authenticated' && session ? (
               <div className="flex items-center space-x-4">
                 <div className="text-gray-300">
                   {session.user.twitterHandle && (
@@ -49,7 +58,7 @@ export default function Navbar() {
                   )}
                 </div>
                 <button
-                  onClick={() => signOut()}
+                  onClick={handleSignOut}
                   className="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Sign Out
@@ -57,7 +66,7 @@ export default function Navbar() {
               </div>
             ) : (
               <button
-                onClick={() => signIn('twitter')}
+                onClick={handleSignIn}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium"
               >
                 Sign In with Twitter

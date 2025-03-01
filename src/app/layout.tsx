@@ -1,6 +1,7 @@
 import './globals.css'
 import { Inter } from 'next/font/google'
 import { getServerSession } from 'next-auth'
+import { headers } from 'next/headers'
 import SessionProvider from './components/SessionProvider'
 import Navbar from './components/ui/Navbar'
 
@@ -17,6 +18,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const session = await getServerSession()
+  const headersList = headers()
 
   return (
     <html lang="en">
