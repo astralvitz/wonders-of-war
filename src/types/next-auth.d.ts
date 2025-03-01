@@ -1,5 +1,6 @@
 import 'next-auth';
 import { DefaultSession } from 'next-auth';
+import 'next-auth/jwt';
 
 declare module 'next-auth' {
   interface User {
@@ -15,6 +16,14 @@ declare module 'next-auth' {
       twitterHandle?: string | null;
       eloRating?: number;
     };
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    userId: string;
+    twitterHandle?: string | null;
+    eloRating?: number;
   }
 }
 
