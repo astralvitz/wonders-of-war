@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 
-// Define the user type based on the Prisma schema
+// Simple in-memory cache with expiration
+const profileCache = new Map<string, { data: any, timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute cache TTL
+
+// Define a type that matches our database schema
 interface UserWithProfile {
   id: string;
   name?: string | null;
@@ -27,8 +31,22 @@ export async function GET(
       );
     }
     
+    // Check cache before database query
+    const cacheKey = `profile-${userId}`;
+    if (profileCache.has(cacheKey)) {
+      const { data, timestamp } = profileCache.get(cacheKey)!;
+      if (Date.now() - timestamp < CACHE_TTL) {
+        console.log(`Cache hit for user profile: ${userId}`);
+        return NextResponse.json(data);
+      }
+      console.log(`Cache expired for user profile: ${userId}`);
+    }
+    
+    console.log(`Fetching user profile from database: ${userId}`);
+    
+    // Get the user from the database
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
     });
     
     if (!user) {
@@ -38,20 +56,26 @@ export async function GET(
       );
     }
     
-    // Cast the user to our interface
-    const userWithProfile = user as unknown as UserWithProfile;
+    // Cast the user to our interface to handle the type correctly
+    const typedUser = user as unknown as UserWithProfile;
     
     // Format the response
     const userProfile = {
-      id: userWithProfile.id,
-      name: userWithProfile.name || undefined,
-      image: userWithProfile.image || undefined,
-      twitterHandle: userWithProfile.twitterHandle || undefined,
-      eloRating: userWithProfile.eloRating,
-      totalWins: userWithProfile.totalWins,
-      totalLosses: userWithProfile.totalLosses,
-      createdAt: userWithProfile.createdAt,
+      id: typedUser.id,
+      name: typedUser.name || undefined,
+      image: typedUser.image || undefined,
+      twitterHandle: typedUser.twitterHandle || undefined,
+      eloRating: typedUser.eloRating,
+      totalWins: typedUser.totalWins,
+      totalLosses: typedUser.totalLosses,
+      createdAt: typedUser.createdAt,
     };
+    
+    // Store in cache
+    profileCache.set(cacheKey, { 
+      data: userProfile, 
+      timestamp: Date.now() 
+    });
     
     return NextResponse.json(userProfile);
   } catch (error) {

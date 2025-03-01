@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [loadingPhase, setLoadingPhase] = useState(0);
 
   useEffect(() => {
     // If not authenticated, redirect to home
@@ -31,6 +32,11 @@ export default function ProfilePage() {
 
     // Wait for session to load
     if (status === 'loading') return;
+
+    // Loading animation phases
+    const phaseInterval = setInterval(() => {
+      setLoadingPhase(prev => (prev + 1) % 3);
+    }, 800);
 
     async function fetchProfile() {
       if (!session?.user?.id) return;
@@ -60,16 +66,39 @@ export default function ProfilePage() {
     }
 
     fetchProfile();
+
+    return () => clearInterval(phaseInterval);
   }, [session, status, router]);
 
   if (loading) {
+    const loadingMessages = [
+      "Excavating ancient records...",
+      "Unearthing your wonders...",
+      "Calculating your conquests..."
+    ];
+
     return (
-      <div className="min-h-screen bg-gray-900 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-extrabold text-white sm:text-4xl">
-              Loading profile...
-            </h2>
+      <div className="min-h-screen bg-gray-900 py-12 flex flex-col items-center justify-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="mb-8">
+            <div className="inline-block relative w-24 h-24">
+              {/* Spinning wonder silhouette */}
+              <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+              <div className="absolute inset-2 rounded-full border-2 border-yellow-400 border-b-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+              {/* Center dot */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+          </div>
+          <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-4">
+            {loadingMessages[loadingPhase]}
+          </h2>
+          <div className="w-64 h-2 bg-gray-700 rounded-full mx-auto overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-yellow-400 rounded-full animate-pulse"
+              style={{ width: `${(loadingPhase + 1) * 33}%`, transition: 'width 0.5s ease-in-out' }}
+            ></div>
           </div>
         </div>
       </div>
