@@ -61,12 +61,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [countdown, setCountdown] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
   
-  // Initialize socket connection
-  useEffect(() => {
-    if (!session) return;
+  // Initialize socket connection only when needed
+  const connectSocket = () => {
+    if (!session || socket) return;
     
-    // Connect to the socket server
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || window.location.origin);
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    if (!socketUrl) {
+      console.warn('NEXT_PUBLIC_SOCKET_URL is not set. Socket connection will not be established.');
+      return;
+    }
+    
+    console.log('Connecting to socket server at:', socketUrl);
+    const newSocket = io(socketUrl);
     setSocket(newSocket);
     
     // Socket event listeners
@@ -131,16 +137,32 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       setError('Your opponent has left the game');
       setGameStatus('error');
     });
-    
-    // Cleanup on unmount
+  };
+  
+  // Cleanup socket on unmount
+  useEffect(() => {
     return () => {
-      newSocket.disconnect();
+      if (socket) {
+        socket.disconnect();
+      }
     };
-  }, [session, rounds]);
+  }, [socket]);
   
   // Game actions
   const startRandomGame = () => {
-    if (!socket || !session) return;
+    if (!session) return;
+    
+    // Connect to socket if not already connected
+    if (!socket) {
+      connectSocket();
+      // We'll need to wait for the socket to connect before proceeding
+      setGameMode('random');
+      setGameStatus('connecting');
+      setRounds([]);
+      setCurrentRound(0);
+      setError(null);
+      return;
+    }
     
     setGameMode('random');
     setGameStatus('connecting');
@@ -152,7 +174,19 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const createCustomGame = () => {
-    if (!socket || !session) return;
+    if (!session) return;
+    
+    // Connect to socket if not already connected
+    if (!socket) {
+      connectSocket();
+      // We'll need to wait for the socket to connect before proceeding
+      setGameMode('custom');
+      setGameStatus('waiting');
+      setRounds([]);
+      setCurrentRound(0);
+      setError(null);
+      return;
+    }
     
     setGameMode('custom');
     setGameStatus('waiting');
@@ -164,7 +198,20 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const joinCustomGame = (code: string) => {
-    if (!socket || !session) return;
+    if (!session) return;
+    
+    // Connect to socket if not already connected
+    if (!socket) {
+      connectSocket();
+      // We'll need to wait for the socket to connect before proceeding
+      setGameMode('custom');
+      setGameStatus('connecting');
+      setLobbyCode(code);
+      setRounds([]);
+      setCurrentRound(0);
+      setError(null);
+      return;
+    }
     
     setGameMode('custom');
     setGameStatus('connecting');
@@ -177,7 +224,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   };
   
   const makeChoice = (choice: GameChoice) => {
-    if (!socket || !session || gameStatus !== 'playing') return;
+    if (!session || gameStatus !== 'playing') return;
+    
+    // Connect to socket if not already connected
+    if (!socket) {
+      setError('Not connected to game server');
+      return;
+    }
     
     socket.emit('make_choice', { userId: session.user.id, choice });
   };
@@ -191,12 +244,18 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     setCurrentRound(0);
     setCountdown(10);
     setError(null);
+    
+    // Disconnect socket when game is reset
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
+    }
   };
   
   const leaveGame = () => {
-    if (!socket) return;
-    
-    socket.emit('leave_game');
+    if (socket) {
+      socket.emit('leave_game');
+    }
     resetGame();
   };
   
