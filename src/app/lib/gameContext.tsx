@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 import { io, Socket } from 'socket.io-client';
+import { usePathname } from 'next/navigation';
 
 // Game types
 export type GameChoice = 'rock' | 'paper' | 'scissors' | null;
@@ -50,6 +51,7 @@ export const useGame = () => {
 export const GameProvider = ({ children }: { children: ReactNode }) => {
   const { data: session } = useSession();
   const [socket, setSocket] = useState<Socket | null>(null);
+  const pathname = usePathname();
   
   // Game state
   const [gameMode, setGameMode] = useState<GameMode>(null);
@@ -61,9 +63,13 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
   const [countdown, setCountdown] = useState<number>(10);
   const [error, setError] = useState<string | null>(null);
   
+  // Check if we're on a game-related page
+  const isGamePage = pathname?.startsWith('/game');
+  
   // Initialize socket connection only when needed
   const connectSocket = () => {
-    if (!session || socket) return;
+    // Only connect if we're on a game-related page
+    if (!session || socket || !isGamePage) return;
     
     const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
     if (!socketUrl) {
@@ -138,6 +144,15 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
       setGameStatus('error');
     });
   };
+  
+  // Disconnect socket when navigating away from game pages
+  useEffect(() => {
+    if (!isGamePage && socket) {
+      console.log('Disconnecting socket - not on game page');
+      socket.disconnect();
+      setSocket(null);
+    }
+  }, [isGamePage, socket]);
   
   // Cleanup socket on unmount
   useEffect(() => {

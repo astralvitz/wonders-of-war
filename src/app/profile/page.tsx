@@ -15,6 +15,10 @@ interface UserProfile {
   createdAt: string;
 }
 
+// Client-side cache
+const profileCache = new Map<string, { data: UserProfile, timestamp: number }>();
+const CACHE_TTL = 60 * 1000; // 1 minute cache TTL
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -41,15 +45,38 @@ export default function ProfilePage() {
     async function fetchProfile() {
       if (!session?.user?.id) return;
       
+      const userId = session.user.id;
+      
+      // Check client-side cache first
+      const cacheKey = `profile-${userId}`;
+      if (profileCache.has(cacheKey)) {
+        const { data, timestamp } = profileCache.get(cacheKey)!;
+        if (Date.now() - timestamp < CACHE_TTL) {
+          console.log('Using cached profile data');
+          setProfile(data);
+          setLoading(false);
+          return;
+        }
+        console.log('Cache expired, fetching fresh data');
+      }
+      
       try {
-        const response = await fetch(`/api/user/${session.user.id}`);
+        console.time('profileFetch');
+        const response = await fetch(`/api/user/${userId}`, {
+          // Add cache control headers
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
         
         if (!response.ok) {
           throw new Error('Failed to fetch profile');
         }
         
         const userData = await response.json();
-        setProfile({
+        console.timeEnd('profileFetch');
+        
+        const profileData = {
           id: userData.id,
           name: userData.name,
           twitterHandle: userData.twitterHandle,
@@ -57,20 +84,31 @@ export default function ProfilePage() {
           totalWins: userData.totalWins,
           totalLosses: userData.totalLosses,
           createdAt: userData.createdAt,
+        };
+        
+        // Store in client-side cache
+        profileCache.set(cacheKey, {
+          data: profileData,
+          timestamp: Date.now()
         });
+        
+        setProfile(profileData);
         setLoading(false);
       } catch (err) {
+        console.error('Error fetching profile:', err);
         setError("Failed to load profile");
         setLoading(false);
       }
     }
 
+    // Start fetching immediately
     fetchProfile();
 
     return () => clearInterval(phaseInterval);
   }, [session, status, router]);
 
-  if (loading) {
+  // If we have session data but profile is still loading, show a simplified profile with session data
+  if (loading && session?.user) {
     const loadingMessages = [
       "Excavating ancient records...",
       "Unearthing your wonders...",
@@ -78,27 +116,53 @@ export default function ProfilePage() {
     ];
 
     return (
-      <div className="min-h-screen bg-gray-900 py-12 flex flex-col items-center justify-center">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="mb-8">
-            <div className="inline-block relative w-24 h-24">
-              {/* Spinning wonder silhouette */}
-              <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
-              <div className="absolute inset-2 rounded-full border-2 border-yellow-400 border-b-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-              {/* Center dot */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+      <div className="min-h-screen bg-gray-900 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Show partial profile data from session while loading */}
+          <div className="bg-gray-800 shadow overflow-hidden sm:rounded-lg mb-8">
+            <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl leading-6 font-medium text-white">
+                  {session.user.name || session.user.twitterHandle ? (
+                    <>
+                      {session.user.name && <span>{session.user.name}</span>}
+                      {session.user.twitterHandle && (
+                        <span className="ml-2 text-gray-400">@{session.user.twitterHandle}</span>
+                      )}
+                    </>
+                  ) : (
+                    "My Profile"
+                  )}
+                </h3>
+                <p className="mt-1 max-w-2xl text-sm text-gray-400">
+                  Loading complete profile...
+                </p>
               </div>
             </div>
           </div>
-          <h2 className="text-3xl font-extrabold text-white sm:text-4xl mb-4">
-            {loadingMessages[loadingPhase]}
-          </h2>
-          <div className="w-64 h-2 bg-gray-700 rounded-full mx-auto overflow-hidden">
-            <div 
-              className="h-full bg-gradient-to-r from-blue-500 to-yellow-400 rounded-full animate-pulse"
-              style={{ width: `${(loadingPhase + 1) * 33}%`, transition: 'width 0.5s ease-in-out' }}
-            ></div>
+          
+          {/* Loading indicator */}
+          <div className="text-center">
+            <div className="mb-8">
+              <div className="inline-block relative w-24 h-24">
+                {/* Spinning wonder silhouette */}
+                <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+                <div className="absolute inset-2 rounded-full border-2 border-yellow-400 border-b-transparent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                {/* Center dot */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-3 h-3 bg-blue-400 rounded-full animate-pulse"></div>
+                </div>
+              </div>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-4">
+              {loadingMessages[loadingPhase]}
+            </h2>
+            <div className="w-64 h-2 bg-gray-700 rounded-full mx-auto overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-blue-500 to-yellow-400 rounded-full animate-pulse"
+                style={{ width: `${(loadingPhase + 1) * 33}%`, transition: 'width 0.5s ease-in-out' }}
+              ></div>
+            </div>
           </div>
         </div>
       </div>

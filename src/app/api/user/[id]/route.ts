@@ -3,7 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 
 // Simple in-memory cache with expiration
 const profileCache = new Map<string, { data: any, timestamp: number }>();
-const CACHE_TTL = 60 * 1000; // 1 minute cache TTL
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL (increased from 1 minute)
 
 // Define a type that matches our database schema
 interface UserWithProfile {
@@ -21,6 +21,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const startTime = Date.now();
   try {
     const userId = params.id;
     
@@ -36,18 +37,27 @@ export async function GET(
     if (profileCache.has(cacheKey)) {
       const { data, timestamp } = profileCache.get(cacheKey)!;
       if (Date.now() - timestamp < CACHE_TTL) {
-        console.log(`Cache hit for user profile: ${userId}`);
-        return NextResponse.json(data);
+        console.log(`Cache hit for user profile: ${userId} (${Date.now() - startTime}ms)`);
+        
+        // Add cache control headers
+        const response = NextResponse.json(data);
+        response.headers.set('X-Cache', 'HIT');
+        response.headers.set('Cache-Control', 'public, max-age=300');
+        return response;
       }
       console.log(`Cache expired for user profile: ${userId}`);
     }
     
     console.log(`Fetching user profile from database: ${userId}`);
+    const dbStartTime = Date.now();
     
     // Get the user from the database
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
+    
+    const dbDuration = Date.now() - dbStartTime;
+    console.log(`Database query took ${dbDuration}ms`);
     
     if (!user) {
       return NextResponse.json(
@@ -77,7 +87,14 @@ export async function GET(
       timestamp: Date.now() 
     });
     
-    return NextResponse.json(userProfile);
+    const totalDuration = Date.now() - startTime;
+    console.log(`Total profile fetch took ${totalDuration}ms`);
+    
+    // Add cache control headers
+    const response = NextResponse.json(userProfile);
+    response.headers.set('X-Cache', 'MISS');
+    response.headers.set('Cache-Control', 'public, max-age=300');
+    return response;
   } catch (error) {
     console.error('Error fetching user:', error);
     return NextResponse.json(
@@ -85,4 +102,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}
